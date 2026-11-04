@@ -1,10 +1,25 @@
-import sys, re, json, pathlib, urllib.request
+"""Importa os artigos de md/ no AnythingLLM, um workspace por lei.
+
+Uso:
+    python importar_por_lei.py                    (simulação: mostra o que faria)
+    python importar_por_lei.py --executar         (envia tudo o que falta)
+    python importar_por_lei.py --executar --limite 150
+
+Retomada: cada arquivo concluído vai para importados_v2.txt e cada pedaço enviado
+para importados_v2_partes.txt. Rodar de novo continua de onde parou, sem duplicar.
+Arquivos que falharam vão para falhas_v2.txt e são tentados de novo na próxima rodada.
+"""
+import pathlib
+import re
+import sys
+import urllib.error
+
+from comum import (ERROS_DE_REDE, MAX_FALHAS_SEGUIDAS, Cliente, Trava, anotar,
+                   argumento_int, ler_chave, ler_registro)
 
 BASE = pathlib.Path(__file__).parent
-API = "http://localhost:3001/api/v1"
-CHAVE = pathlib.Path(r"D:\IA_LOCAL\anythingllm_api_key.txt").read_text(encoding="utf-8").strip()
 executar = "--executar" in sys.argv
-limite = int(sys.argv[sys.argv.index("--limite") + 1]) if "--limite" in sys.argv else None
+limite = argumento_int("--limite")
 
 LEIS = {
     "Lei_14133_2021": ("Lei 14.133", "Lei nº 14.133/2021 (Nova Lei de Licitações e Contratos)"),
@@ -18,18 +33,10 @@ PROMPT = (
     "Nunca atribua um artigo a uma lei diferente da que está escrita no trecho."
 )
 LOG = BASE / "importados_v2.txt"
+LOG_PARTES = BASE / "importados_v2_partes.txt"
 FALHAS = BASE / "falhas_v2.txt"
-feitos = set(LOG.read_text(encoding="utf-8").splitlines()) if LOG.exists() else set()
+TRAVA = BASE / "importacao.lock"
 MAX = 5000
-
-
-def chamar(caminho, corpo=None):
-    req = urllib.request.Request(
-        API + caminho,
-        data=json.dumps(corpo).encode("utf-8") if corpo is not None else None,
-        headers={"Authorization": f"Bearer {CHAVE}", "Content-Type": "application/json"},
-    )
-    return json.load(urllib.request.urlopen(req, timeout=300))
 
 
 def campo(fm, nome):
@@ -69,44 +76,103 @@ def partes(p, nome_lei):
     return saida
 
 
-arquivos = []
-for pasta, (ws_nome, nome_lei) in LEIS.items():
-    for p in sorted((BASE / "md" / pasta).glob("*.md")):
-        if not p.name.startswith("_") and str(p.relative_to(BASE)) not in feitos:
-            arquivos.append((pasta, p))
-if limite:
-    arquivos = arquivos[:limite]
-print(f"{len(arquivos)} arquivos a importar em {len(LEIS)} workspaces (já feitos: {len(feitos)})")
-if not executar:
-    pasta, p = next((x for x in arquivos if x[0] == "CF_1988"), arquivos[0])
-    ex = partes(p, LEIS[pasta][1])
-    print(f"exemplo: {p.name} -> {len(ex)} pedaço(s); primeiro:\n{ex[0][1][:300]}")
-    print("SIMULAÇÃO: nada enviado. Use --executar (opcional --limite N).")
-    sys.exit()
+def pendentes(feitos):
+    lista = []
+    for pasta in LEIS:
+        for p in sorted((BASE / "md" / pasta).glob("*.md")):
+            if not p.name.startswith("_") and str(p.relative_to(BASE)) not in feitos:
+                lista.append((pasta, p))
+    return lista
 
-slugs = {}
-existentes = {w["name"]: w["slug"] for w in chamar("/workspaces")["workspaces"]}
-for pasta, (ws_nome, _) in LEIS.items():
-    slug = existentes.get(ws_nome) or chamar("/workspace/new", {"name": ws_nome})["workspace"]["slug"]
-    chamar(f"/workspace/{slug}/update", {
-        "openAiPrompt": PROMPT, "topN": 8, "similarityThreshold": 0.2, "chatMode": "query",
-        "queryRefusalResponse": "Não encontrei na base.",
-    })
-    slugs[pasta] = slug
-print("workspaces:", slugs)
 
-for i, (pasta, p) in enumerate(arquivos, 1):
-    rel = str(p.relative_to(BASE))
+def preparar_workspaces(api):
+    slugs = {}
+    existentes = {w["name"]: w["slug"] for w in api.chamar("/workspaces")["workspaces"]}
+    for pasta, (ws_nome, _) in LEIS.items():
+        slug = existentes.get(ws_nome) or api.chamar("/workspace/new", {"name": ws_nome})["workspace"]["slug"]
+        api.chamar(f"/workspace/{slug}/update", {
+            "openAiPrompt": PROMPT, "topN": 8, "similarityThreshold": 0.2, "chatMode": "query",
+            "queryRefusalResponse": "Não encontrei na base.",
+        })
+        slugs[pasta] = slug
+    return slugs
+
+
+def enviar_arquivo(api, slug, pasta, p, rel, partes_feitas):
+    """Envia os pedaços que faltam de um arquivo. Devolve True se todos entraram no workspace."""
     ok = True
-    for titulo, texto in partes(p, LEIS[pasta][1]):
-        r = chamar("/document/raw-text", {"textContent": texto, "metadata": {"title": titulo}})
+    for n, (titulo, texto) in enumerate(partes(p, LEIS[pasta][1]), 1):
+        chave_parte = f"{rel}#{n}"
+        if chave_parte in partes_feitas:
+            continue
+        r = api.chamar("/document/raw-text", {"textContent": texto, "metadata": {"title": titulo}})
         local = "custom-documents/" + pathlib.PureWindowsPath(r["documents"][0]["location"]).name
-        ws = chamar(f"/workspace/{slugs[pasta]}/update-embeddings", {"adds": [local]})["workspace"]
-        if not any(d["docpath"] == local for d in ws.get("documents", [])):
+        ws = api.chamar(f"/workspace/{slug}/update-embeddings", {"adds": [local]})["workspace"]
+        if any(d["docpath"] == local for d in ws.get("documents", [])):
+            anotar(LOG_PARTES, chave_parte)
+        else:
             ok = False
-            print(f"FALHOU: {rel} ({titulo})")
-    with open(LOG if ok else FALHAS, "a", encoding="utf-8") as f:
-        f.write(rel + "\n")
-    if i % 25 == 0:
-        print(f"{i}/{len(arquivos)}")
-print("concluído")
+            print(f"FALHOU o embedding: {rel} ({titulo})")
+    return ok
+
+
+def main():
+    feitos = ler_registro(LOG)
+    arquivos = pendentes(feitos)
+    if limite:
+        arquivos = arquivos[:limite]
+    print(f"{len(arquivos)} arquivos a importar em {len(LEIS)} workspaces (já feitos: {len(feitos)})")
+    if not arquivos:
+        print("Nada a fazer.")
+        return
+    if not executar:
+        pasta, p = next((x for x in arquivos if x[0] == "CF_1988"), arquivos[0])
+        ex = partes(p, LEIS[pasta][1])
+        print(f"exemplo: {p.name} -> {len(ex)} pedaço(s); primeiro:\n{ex[0][1][:300]}")
+        print("SIMULAÇÃO: nada enviado. Use --executar (opcional --limite N).")
+        return
+
+    api = Cliente(ler_chave())
+    with Trava(TRAVA):
+        try:
+            slugs = preparar_workspaces(api)
+        except ERROS_DE_REDE as e:
+            sys.exit(f"Não consegui falar com o AnythingLLM em {api.api} ({getattr(e, 'reason', e)}). "
+                     "Ele está aberto? Nada foi enviado.")
+        print("workspaces:", slugs)
+        partes_feitas = ler_registro(LOG_PARTES)
+        ok_total = falhas_total = seguidas = 0
+        try:
+            for i, (pasta, p) in enumerate(arquivos, 1):
+                rel = str(p.relative_to(BASE))
+                try:
+                    ok = enviar_arquivo(api, slugs[pasta], pasta, p, rel, partes_feitas)
+                except urllib.error.HTTPError as e:
+                    if e.code in (401, 403):
+                        sys.exit(f"A API recusou a chave (HTTP {e.code}). Confira a chave em ANYTHINGLLM_API_KEY ou no arquivo da chave; nada mais foi enviado.")
+                    print(f"FALHOU: {rel} (HTTP {e.code})")
+                    ok = False
+                except ERROS_DE_REDE as e:
+                    print(f"FALHOU: {rel} (rede: {getattr(e, 'reason', e)})")
+                    ok = False
+                anotar(LOG if ok else FALHAS, rel)
+                if ok:
+                    ok_total += 1
+                    seguidas = 0
+                else:
+                    falhas_total += 1
+                    seguidas += 1
+                    if seguidas >= MAX_FALHAS_SEGUIDAS:
+                        print(f"{seguidas} falhas seguidas: o AnythingLLM parece fora do ar. "
+                              "Parando; rode de novo para continuar de onde parou.")
+                        break
+                if i % 25 == 0:
+                    print(f"{i}/{len(arquivos)}")
+        except KeyboardInterrupt:
+            print("\nInterrompido. O progresso está salvo; rode de novo para continuar.")
+        print(f"concluído: {ok_total} importados, {falhas_total} com falha "
+              f"(ver {FALHAS.name}), {len(arquivos) - ok_total - falhas_total} não tentados")
+
+
+if __name__ == "__main__":
+    main()
