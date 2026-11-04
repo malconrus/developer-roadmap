@@ -66,8 +66,13 @@ AnythingLLM fechado) e continua de onde parou na próxima vez:
 | `ANYTHINGLLM_CHAVE_ARQ` | `D:\IA_LOCAL\anythingllm_api_key.txt` |
 
 Os workspaces criados por `importar_por_lei.py` são `Lei 14.133`, `CF 1988` e `CDC`,
-em modo `query`, com `topN` 8, limiar de similaridade 0,2 e um prompt que obriga a citar
-lei e artigo exatos e a responder "Não encontrei na base." quando o contexto não traz a resposta.
+em modo `query`, com temperatura 0,1, `topN` 8, limiar de similaridade 0,2 e um prompt que
+obriga a citar lei, artigo e inciso exatos (inciso logo após o caput é "art. X, I", não "§ 1º"),
+a copiar valores e prazos como estão, a avisar quando o trecho diz "Vide Decreto" e a responder
+"Não encontrei na base." quando o contexto não traz a resposta.
+
+O AnythingLLM corta o nome do documento no primeiro ponto, então os títulos são enviados sem
+pontos ("Lei nº 14133/2021 - Art 28").
 
 ## Instalar no PC
 
