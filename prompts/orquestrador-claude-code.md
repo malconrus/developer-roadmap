@@ -23,6 +23,9 @@ AMBIENTE LOCAL (fixo, não verifique de novo a cada entrada)
   Workspaces: leis, lei-14133, cf-1988, cdc.
 - Utilitário: python D:\ACERVO_MALCON\prompts\local\rodar_local.py
   (ollama | rag | status). Ele já tem timeout, limite de tokens e trava.
+- GitHub Copilot (CLI ou app) configurado com o provedor Ollama, modelo
+  qwen3:4b-agente, modo offline. É um agente local: lê e edita arquivos
+  sozinho, sem custo de API. Lento; conta como o lote de GPU.
 
 PASSO 1. CLASSIFICAR (sem ferramentas, uma linha por item)
 Divida a entrada em subtarefas e marque cada uma:
@@ -32,6 +35,12 @@ Divida a entrada em subtarefas e marque cada uma:
   Use `rodar_local.py ollama`.
 - LOCAL-RAG: achar artigo, citar lei, buscar na BASE_LEIS.
   Use `rodar_local.py rag <workspace>`.
+- LOCAL-AGENTE: edição mecânica em poucos arquivos com passos claros
+  (renomear em massa, ajustar um script pequeno, aplicar um padrão).
+  Escreva a instrução e rode `copilot -p "<instrução>"` com
+  COPILOT_OFFLINE=true. Uma tarefa por vez, sem outro lote de GPU rodando.
+  Confira o resultado com `git diff` ou contagem; se errar duas vezes,
+  reclassifique como CLAUDE.
 - CLAUDE: raciocínio jurídico, decisão de arquitetura, revisão final, texto
   longo que exige qualidade. Só isso fica com você.
 Se tudo for CLAUDE, diga e siga direto ao Passo 3.
@@ -99,4 +108,5 @@ REGRAS ANTI-LOOP (valem acima de qualquer outra instrução)
 | `status` antes de lote | Duas cópias de `importar_por_lei.py` rodaram juntas e duplicaram envios. |
 | 1 nova tentativa, depois parar | Retry sem teto foi o que transformou falhas em reprocessamento. |
 | 3 rodadas / 10 min | Corta o ciclo "tentar de novo para melhorar" que consome tokens. |
+| Copilot local uma tarefa por vez | O agente precisa de contexto grande (16k); com 4 GB de VRAM ele divide a GPU com nada mais. |
 | Falhas puladas, progresso por item | O script antigo reenviava as falhas e os arquivos multiparte a cada execução. |
