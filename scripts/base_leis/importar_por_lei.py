@@ -28,9 +28,15 @@ LEIS = {
 }
 PROMPT = (
     "Você responde perguntas sobre a legislação brasileira usando SOMENTE os trechos do contexto. "
-    "Sempre cite a lei e o artigo exatos que aparecem no trecho (ex.: Lei nº 8.078/1990, art. 26). "
-    "Se o contexto não trouxer a resposta, responda exatamente: Não encontrei na base. "
-    "Nunca atribua um artigo a uma lei diferente da que está escrita no trecho."
+    "Cada trecho começa com o nome da lei e o artigo; cite exatamente essa lei e esse artigo "
+    "(ex.: Lei nº 8.078/1990, art. 26, II). "
+    "Regras de citação: incisos (I, II, III...) que vêm logo depois do caput pertencem ao caput, "
+    "então cite 'art. X, I', e não 'art. X, § 1º'. Só cite um parágrafo (§) se a informação estiver "
+    "na linha que começa com aquele §. Nunca atribua um artigo a uma lei diferente da escrita no trecho. "
+    "Copie valores e prazos exatamente como aparecem no trecho. Se o trecho disser 'Vide Decreto', "
+    "avise que o valor pode ter sido atualizado por esse decreto. "
+    "Se os trechos não trouxerem a resposta, responda exatamente: Não encontrei na base. "
+    "Nunca afirme que algo não existe na lei só porque não apareceu nos trechos."
 )
 LOG = BASE / "importados_v2.txt"
 LOG_PARTES = BASE / "importados_v2_partes.txt"
@@ -42,6 +48,12 @@ MAX = 5000
 def campo(fm, nome):
     m = re.search(rf"(?m)^{nome}:\s*(.+)$", fm)
     return m.group(1).strip().strip('"') if m else ""
+
+
+def titulo_para_api(titulo):
+    """O AnythingLLM corta o nome do documento no primeiro ponto
+    ("Lei nº 14.133/2021, art. 28" vira "lei-no-14-1332021-art.txt"), então tiramos os pontos."""
+    return titulo.replace(".", "")
 
 
 def partes(p, nome_lei):
@@ -91,7 +103,7 @@ def preparar_workspaces(api):
     for pasta, (ws_nome, _) in LEIS.items():
         slug = existentes.get(ws_nome) or api.chamar("/workspace/new", {"name": ws_nome})["workspace"]["slug"]
         api.chamar(f"/workspace/{slug}/update", {
-            "openAiPrompt": PROMPT, "topN": 8, "similarityThreshold": 0.2, "chatMode": "query",
+            "openAiPrompt": PROMPT, "openAiTemp": 0.1, "topN": 8, "similarityThreshold": 0.2, "chatMode": "query",
             "queryRefusalResponse": "Não encontrei na base.",
         })
         slugs[pasta] = slug
@@ -105,7 +117,7 @@ def enviar_arquivo(api, slug, pasta, p, rel, partes_feitas):
         chave_parte = f"{rel}#{n}"
         if chave_parte in partes_feitas:
             continue
-        r = api.chamar("/document/raw-text", {"textContent": texto, "metadata": {"title": titulo}})
+        r = api.chamar("/document/raw-text", {"textContent": texto, "metadata": {"title": titulo_para_api(titulo)}})
         local = "custom-documents/" + pathlib.PureWindowsPath(r["documents"][0]["location"]).name
         ws = api.chamar(f"/workspace/{slug}/update-embeddings", {"adds": [local]})["workspace"]
         if any(d["docpath"] == local for d in ws.get("documents", [])):
