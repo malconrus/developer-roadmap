@@ -1,6 +1,6 @@
 # Base de leis para o AnythingLLM
 
-Scripts que montam uma base local de legislação (Lei nº 14.133/2021, CF/88 e CDC)
+Scripts que montam uma base local de legislação (Lei nº 14.133/2021, CF/88, CDC e Código Penal)
 e a importam no AnythingLLM, para consulta com um modelo local pelo Ollama
 (embedder `bge-m3`, modelo `qwen3:4b`). Tudo roda no PC, em `D:\BASE_LEIS`.
 
@@ -65,7 +65,7 @@ AnythingLLM fechado) e continua de onde parou na próxima vez:
 | `ANYTHINGLLM_API_KEY` | (vazia: lê do arquivo abaixo) |
 | `ANYTHINGLLM_CHAVE_ARQ` | `D:\IA_LOCAL\anythingllm_api_key.txt` |
 
-Os workspaces criados por `importar_por_lei.py` são `Lei 14.133`, `CF 1988` e `CDC`,
+Os workspaces criados por `importar_por_lei.py` são `Lei 14.133`, `CF 1988`, `CDC` e `Código Penal`,
 em modo `query`, com temperatura 0,1, `topN` 8, limiar de similaridade 0,2 e um prompt que
 obriga a citar lei, artigo e inciso exatos (inciso logo após o caput é "art. X, I", não "§ 1º"),
 a copiar valores e prazos como estão, a avisar quando o trecho diz "Vide Decreto" e a responder
