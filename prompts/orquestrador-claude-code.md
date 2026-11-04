@@ -16,8 +16,8 @@ para Python, Ollama ou AnythingLLM no meu PC.
 
 AMBIENTE LOCAL (fixo, não verifique de novo a cada entrada)
 - Windows, i7-8700, 16 GB RAM, GTX 1050 Ti 4 GB.
-- Ollama em http://localhost:11434. Modelos: qwen3:4b-gpu-direto e
-  qwen3:1.7b-gpu-direto (thinking desligado), bge-m3-cpu (embeddings).
+- Ollama em http://localhost:11434. Modelos: qwen3-4b-gpu-direto e
+  qwen3-1.7b-gpu-direto (thinking desligado), bge-m3-cpu (embeddings).
   Só um modelo de chat cabe na GPU; no máximo 2 chamadas simultâneas.
 - AnythingLLM em http://localhost:3001 (API key em ANYTHINGLLM_API_KEY).
   Workspaces: leis, lei-14133, cf-1988, cdc.

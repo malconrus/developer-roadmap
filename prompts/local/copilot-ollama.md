@@ -23,7 +23,7 @@ Docs: [Copilot CLI com modelos próprios](https://docs.github.com/en/copilot/how
 Salve como `D:\ACERVO_MALCON\prompts\local\Modelfile.agente`:
 
 ```
-FROM qwen3:4b-gpu-direto
+FROM qwen3-4b-gpu-direto
 PARAMETER num_ctx 16384
 PARAMETER temperature 0.2
 ```
@@ -63,7 +63,7 @@ copilot -p "Renomeie os arquivos de D:\pasta para o padrão art-NNN.md. Não apa
 1. **Provider**: `Ollama (local)`.
 2. **Base URL**: `http://localhost:11434/v1` (já vem preenchida).
 3. **Model ID**: o nome exato que aparece em `ollama list`, de preferência
-   `qwen3:4b-agente`. Enquanto ele não for criado, `qwen3:4b-gpu-direto`
+   `qwen3:4b-agente`. Enquanto ele não for criado, `qwen3-4b-gpu-direto`
    funciona, mas com contexto pequeno o agente pode cortar as instruções.
 4. **Save and continue** (Ctrl+Enter). Não há campo de API key para Ollama.
 

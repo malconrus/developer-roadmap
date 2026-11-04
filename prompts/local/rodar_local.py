@@ -2,7 +2,7 @@
 
 Uso:
   python rodar_local.py ollama "texto"            (ou texto via stdin)
-  python rodar_local.py ollama --modelo qwen3:1.7b-gpu-direto "texto"
+  python rodar_local.py ollama --modelo qwen3-1.7b-gpu-direto "texto"
   python rodar_local.py rag lei-14133 "pergunta"
   python rodar_local.py status
 
@@ -21,7 +21,7 @@ import urllib.request
 
 OLLAMA = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 ANYTHING = os.environ.get("ANYTHINGLLM_URL", "http://localhost:3001")
-MODELO_PADRAO = os.environ.get("MODELO_LOCAL", "qwen3:4b-gpu-direto")
+MODELO_PADRAO = os.environ.get("MODELO_LOCAL", "qwen3-4b-gpu-direto")
 MAX_SAIDA = 4000  # caracteres devolvidos ao Claude, para economizar tokens
 TENTATIVAS = 2    # a original + uma nova tentativa
 
