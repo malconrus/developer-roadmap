@@ -25,6 +25,7 @@ LEIS = {
     "Lei_14133_2021": ("Lei 14.133", "Lei nº 14.133/2021 (Nova Lei de Licitações e Contratos)"),
     "CF_1988": ("CF 1988", "Constituição Federal de 1988"),
     "CDC_8078_1990": ("CDC", "Código de Defesa do Consumidor (Lei nº 8.078/1990)"),
+    "CP_337": ("Código Penal", "Código Penal (Decreto-Lei nº 2.848/1940)"),
 }
 PROMPT = (
     "Você responde perguntas sobre a legislação brasileira usando SOMENTE os trechos do contexto. "
