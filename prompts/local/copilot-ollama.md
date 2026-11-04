@@ -60,11 +60,12 @@ copilot -p "Renomeie os arquivos de D:\pasta para o padrão art-NNN.md. Não apa
 
 ## 2b. Copilot app (a tela da imagem)
 
-1. Em **Provider**, escolha **Ollama** (ou "OpenAI-compatible").
-2. Base URL: `http://localhost:11434/v1`. API key: deixe vazia ou ponha
-   `ollama` se o campo for obrigatório.
-3. Modelo: `qwen3:4b-agente`.
-4. Salve e escolha esse modelo no seletor do chat.
+1. **Provider**: `Ollama (local)`.
+2. **Base URL**: `http://localhost:11434/v1` (já vem preenchida).
+3. **Model ID**: o nome exato que aparece em `ollama list`, de preferência
+   `qwen3:4b-agente`. Enquanto ele não for criado, `qwen3:4b-gpu-direto`
+   funciona, mas com contexto pequeno o agente pode cortar as instruções.
+4. **Save and continue** (Ctrl+Enter). Não há campo de API key para Ollama.
 
 ## 3. Conferir
 
