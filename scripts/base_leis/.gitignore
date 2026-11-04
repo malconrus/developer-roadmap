@@ -1,0 +1,10 @@
+# Dados e registros ficam só no PC
+html/
+md/
+ferramentas/
+*.log
+*.lock
+importados*.txt
+falhas*.txt
+*_api_key*.txt
+__pycache__/
