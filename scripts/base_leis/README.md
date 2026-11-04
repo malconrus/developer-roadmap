@@ -16,6 +16,7 @@ importação e a chave da API ficam no PC e não são versionados (ver `.gitigno
 | `gerar_md.py` | Usa o [lexbr](https://github.com/yagodejesus/lexbr) (em `ferramentas/lexbr`) para gerar um `.md` por trecho em `md/` |
 | `importar_por_lei.py` | **Atual.** Importa `md/` no AnythingLLM, um workspace por lei |
 | `importar_anythingllm.py` | Versão 1: importa tudo em um único workspace `Leis` |
+| `artigo.py` | Consulta direta por artigo, sem IA: `python artigo.py cf 5 II`, `python artigo.py lei 28` |
 | `comum.py` | Chamadas à API com novas tentativas, trava e registro, usado pelos dois importadores |
 
 ## Uso
@@ -33,18 +34,30 @@ python importar_por_lei.py --executar --limite 150
 
 `--limite N` envia só os próximos N arquivos pendentes. Rodar de novo pega os N seguintes.
 
+## Versão 3: dispositivo em cada linha
+
+Desde a v3, cada trecho enviado traz o dispositivo escrito na própria linha, para o modelo
+citar inciso e parágrafo certos:
+
+- CF e CDC (cabeçalhos do lexbr): `## Inciso XXI` vira `## [art. 37, XXI] Inciso XXI`,
+  `## § 3º` vira `## [art. 37, § 3º] § 3º`, e `### Inciso I` / `### Alínea a` herdam o `##` anterior.
+- Lei 14.133 e Código Penal (texto corrido): `I - pregão;` vira `[art. 28, I] I - pregão;`,
+  e incisos depois de um `§` pertencem a esse parágrafo.
+
+A v3 usa registros novos (`importados_v3*.txt`, `falhas_v3.txt`); os `*_v2*.txt` ficam como histórico.
+
 ## Retomada
 
 A importação pode ser interrompida a qualquer momento (Ctrl+C, queda de energia,
 AnythingLLM fechado) e continua de onde parou na próxima vez:
 
-- Cada arquivo concluído entra em `importados_v2.txt` (v1: `importados.txt`) assim
+- Cada arquivo concluído entra em `importados_v3.txt` (v1: `importados.txt`) assim
   que termina, gravado direto no disco. Esses arquivos são pulados nas rodadas seguintes.
 - Artigos longos são divididos em pedaços de até 5.000 caracteres. Cada pedaço enviado
-  entra em `importados_v2_partes.txt`, então um artigo que parou no meio não manda de
+  entra em `importados_v3_partes.txt`, então um artigo que parou no meio não manda de
   novo os pedaços que já entraram (não cria duplicatas no workspace).
-- Arquivos que falharam vão para `falhas_v2.txt` (v1: `falhas.txt`). Como não estão em
-  `importados_v2.txt`, são tentados de novo automaticamente na próxima rodada.
+- Arquivos que falharam vão para `falhas_v3.txt` (v1: `falhas.txt`). Como não estão em
+  `importados_v3.txt`, são tentados de novo automaticamente na próxima rodada.
 
 ## Proteções contra travar ou ficar em loop
 
@@ -77,8 +90,8 @@ pontos ("Lei nº 14133/2021 - Art 28").
 ## Instalar no PC
 
 Copie `comum.py`, `importar_por_lei.py` e `importar_anythingllm.py` para `D:\BASE_LEIS`
-(os três precisam ficar na mesma pasta). Os registros existentes (`importados_v2.txt`,
-`falhas_v2.txt`) continuam valendo, porque o formato não mudou. Não troque os arquivos
+(os três precisam ficar na mesma pasta). Rode sem `python -I`: essa opção tira a pasta do
+script do caminho de importação e o `comum.py` não é encontrado. Não troque os arquivos
 enquanto uma importação estiver rodando.
 
 Requer Python 3.8+ e só a biblioteca padrão.

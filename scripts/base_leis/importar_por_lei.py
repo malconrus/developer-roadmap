@@ -39,16 +39,58 @@ PROMPT = (
     "Se os trechos não trouxerem a resposta, responda exatamente: Não encontrei na base. "
     "Nunca afirme que algo não existe na lei só porque não apareceu nos trechos."
 )
-LOG = BASE / "importados_v2.txt"
-LOG_PARTES = BASE / "importados_v2_partes.txt"
-FALHAS = BASE / "falhas_v2.txt"
+# v3: trechos com o dispositivo escrito em cada linha ("[art. 28, I] ..."). Registros novos,
+# para não misturar com a importação v2 (importados_v2*.txt ficam como histórico).
+LOG = BASE / "importados_v3.txt"
+LOG_PARTES = BASE / "importados_v3_partes.txt"
+FALHAS = BASE / "falhas_v3.txt"
 TRAVA = BASE / "importacao.lock"
 MAX = 5000
 
 
 def campo(fm, nome):
-    m = re.search(rf"(?m)^{nome}:\s*(.+)$", fm)
+    # titulo/capitulo/secao vêm indentados sob "hierarquia:" no front matter do lexbr
+    m = re.search(rf"(?m)^\s*{nome}:\s*(.+)$", fm)
     return m.group(1).strip().strip('"') if m else ""
+
+
+ROMANO = r"[IVXLC]+"
+
+
+def anotar_cabecalhos(corpo, art):
+    """CF/CDC (lexbr): '## Inciso XXI' vira '## [art. 37, XXI] Inciso XXI'.
+    '###' é um nível abaixo do '##' anterior: '### Inciso I' sob '§ 3º' vira 'art. 37, § 3º, I'
+    e '### Alínea a' sob 'Inciso XVI' vira 'art. 37, XVI, a'."""
+    pai, saida = art, []
+    for linha in corpo.splitlines():
+        if m := re.match(r"## (§ ?\S+|Parágrafo único)\s*$", linha):
+            pai = f"{art}, {m.group(1)}"
+            linha = f"## [{pai}] {m.group(1)}"
+        elif m := re.match(rf"## Inciso ({ROMANO})\s*$", linha):
+            pai = f"{art}, {m.group(1)}"
+            linha = f"## [{pai}] Inciso {m.group(1)}"
+        elif m := re.match(rf"### (Inciso ({ROMANO})|Alínea ([a-z]))\s*$", linha):
+            linha = f"### [{pai}, {m.group(2) or m.group(3)}] {m.group(1)}"
+        saida.append(linha)
+    return "\n".join(saida)
+
+
+def anotar_linhas(corpo):
+    """Lei 14.133 (texto corrido): 'I - pregão;' vira '[art. 28, I] I - pregão;'.
+    Incisos depois de um '§' pertencem a esse parágrafo."""
+    art = par = None
+    saida = []
+    for linha in corpo.splitlines():
+        if m := re.match(r"Art\. (\d+(?:-[A-Z])?)[º°]?", linha):
+            art, par = f"art. {m.group(1)}", None
+        elif art and (m := re.match(r"(§ ?\d+[º°]?(?:-[A-Z])?|Parágrafo único)", linha)):
+            par = m.group(1)
+            linha = f"[{art}, {par}] {linha}"
+        elif art and (m := re.match(rf"({ROMANO}) -", linha)):
+            disp = f"{art}, {par}, {m.group(1)}" if par else f"{art}, {m.group(1)}"
+            linha = f"[{disp}] {linha}"
+        saida.append(linha)
+    return "\n".join(saida)
 
 
 def titulo_para_api(titulo):
@@ -66,10 +108,11 @@ def partes(p, nome_lei):
         hier = [campo(fm, h) for h in ("titulo", "capitulo", "secao")]
         cab = " › ".join([nome_lei] + [h for h in hier if h] + [rotulo])
         corpo = re.sub(r"<a id=\"[^\"]*\"></a>", "", corpo).strip()
+        corpo = anotar_cabecalhos(corpo, rotulo[:1].lower() + rotulo[1:])
         titulo = f"{nome_lei} - {rotulo}"
     else:
         cab = ""
-        corpo = bruto.strip()
+        corpo = anotar_linhas(bruto.strip())
         m = re.search(r"Fonte: (.+)$", corpo)
         titulo = m.group(1).strip() if m else p.stem
     if len(corpo) <= MAX:
