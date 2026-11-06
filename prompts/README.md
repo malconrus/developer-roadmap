@@ -6,6 +6,7 @@ Prompts para rodar Claude Code, Ollama e AnythingLLM juntos, com o mínimo de to
 |---|---|
 | [orquestrador-claude-code.md](orquestrador-claude-code.md) | Texto para colar no Claude Code ou no projeto da nuvem. Cada entrada vira um prompt remodelado. |
 | [local/rodar_local.py](local/rodar_local.py) | Chamadas ao Ollama e ao AnythingLLM com timeout, teto de tokens e no máximo uma nova tentativa; `status` detecta scripts duplicados. |
+| [local/copilot-ollama.md](local/copilot-ollama.md) | Como ligar o GitHub Copilot (CLI ou app) ao Ollama local, como agente sem custo de API. |
 | [skills.md](skills.md) | Skills instaladas que o orquestrador usa e as sugeridas. |
 
 ## Instalação no PC
